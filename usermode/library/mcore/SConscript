@@ -27,7 +27,7 @@ buildEnv.Append(LIBS = ['config', 'elf', 'pthread'])
 
 
 if buildEnv['BUILD_DEBUG'] == True:
-	buildEnv.Append(CCFLAGS = ' -g -O0 -D_MNEMOSYNE_BUILD_DEBUG')
+	buildEnv.Append(CCFLAGS = ' -ggdb3 -O0 -D_MNEMOSYNE_BUILD_DEBUG')
 else:
 	buildEnv.Append(CCFLAGS = ' -O2')
 

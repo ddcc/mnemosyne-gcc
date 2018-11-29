@@ -3,7 +3,7 @@ stampEnv = benchEnv.Clone()
 
 # $(CC) $(CCFLAGS) $(CPPPATH)
 # Use O0 flag only else GCC itself segfaults !
-stampEnv.Append(CCFLAGS = ' -O0')
+stampEnv.Append(CCFLAGS = ' -O0 -ggdb3')
 stampEnv.Append(CCFLAGS = '-fno-omit-frame-pointer')
 
 # Not sure why the order matters but these files should 

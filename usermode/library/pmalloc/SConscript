@@ -15,9 +15,9 @@ DISABLE_WARNINGS = []
 
 
 if buildEnv['BUILD_DEBUG'] == True:
-	CCFLAGS= ' -std=gnu++11 -g -D_M_BUILD_DEBUG -D_MNEMOSYNE_BUILD_DEBUG '
+	CCFLAGS= ' -std=gnu++11 -ggdb3 -D_M_BUILD_DEBUG -D_MNEMOSYNE_BUILD_DEBUG '
 else:
-	CCFLAGS= ' -std=gnu++11 -g -DNDEBUG -O2 ' + OPTIMIZE_FLAG
+	CCFLAGS= ' -std=gnu++11 -ggdb3 -DNDEBUG -O2 ' + OPTIMIZE_FLAG
 
 if buildEnv['BUILD_STATS'] == True:
 	buildEnv.Append(CCFLAGS = ' -D_M_STATS_BUILD')
