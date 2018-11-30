@@ -306,7 +306,7 @@ static inline void asm_nop10() {
 	asm volatile("nop");
 }
 
-static inline
+static inline __attribute__((always_inline))
 void
 emulate_latency_ns(int ns)
 {
@@ -323,7 +323,7 @@ emulate_latency_ns(int ns)
 
 # else
 
-static inline
+static inline __attribute__((always_inline))
 void
 emulate_latency_ns(int ns)
 {
@@ -474,15 +474,15 @@ PCM_WB_STORE(pcm_storeset_t *set, volatile pcm_word_t *addr, pcm_word_t val)
 
 static inline
 void
-PCM_WB_STORE_MASKED(pcm_storeset_t *set, 
-                    volatile pcm_word_t *addr, 
-                    pcm_word_t val, 
+PCM_WB_STORE_MASKED(pcm_storeset_t *set,
+                    volatile pcm_word_t *addr,
+                    pcm_word_t val,
                     pcm_word_t mask)
 {
 	//printf("PCM_WB_STORE_MASKED: (0x%lx, %lx, %lx)\n", addr, val, mask);
 #ifdef M_PCM_EMULATE_CRASH
 	pcm_wb_store_emulate_crash(set, addr, val);
-#endif	
+#endif
 
 	write_aligned_masked((pcm_word_t *) addr, val, mask);
 
@@ -501,9 +501,9 @@ PCM_WB_STORE_MASKED(pcm_storeset_t *set,
 
 static inline
 void
-PCM_WB_STORE_ALIGNED_MASKED(pcm_storeset_t *set, 
-                            volatile pcm_word_t *addr, 
-                            pcm_word_t val, 
+PCM_WB_STORE_ALIGNED_MASKED(pcm_storeset_t *set,
+                            volatile pcm_word_t *addr,
+                            pcm_word_t val,
                             pcm_word_t mask)
 {
 	PCM_WB_STORE_MASKED(set, addr, val, mask);
@@ -514,7 +514,7 @@ static inline
 void
 PCM_WB_FENCE(pcm_storeset_t *set)
 {
-		asm_mfence(); 
+		asm_mfence();
 }
 
 /*
@@ -528,9 +528,9 @@ PCM_WB_FLUSH(pcm_storeset_t *set, volatile pcm_word_t *addr)
 	pcm_wb_flush_emulate_crash(set, addr);
 #endif
 
-	/* 
-	 * Need mfence first to ensure that previous stores are included 
-	 * in the write-back 
+	/*
+	 * Need mfence first to ensure that previous stores are included
+	 * in the write-back
 	 * But as this interface is used by transactions that may have many
 	 * clflush we required them to have issued the mfence themselves
 	 * otherwise we would unnecessarily issue multiple mfences
@@ -544,20 +544,20 @@ PCM_WB_FLUSH(pcm_storeset_t *set, volatile pcm_word_t *addr)
 		pcm_hrtime_t stop;
 
 		start = asm_rdtscp();
-		asm_clflush(addr); 	
+		asm_clflush(addr);
 		stop = asm_rdtscp();
 		emulate_latency_ns(M_PCM_LATENCY_WRITE - CYCLE2NS(stop-start));
 #else
-		asm_clflush(addr); 	
+		asm_clflush(addr);
 		emulate_latency_ns(M_PCM_LATENCY_WRITE);
-#endif		
-		asm_mfence(); 
-	}	
+#endif
+		asm_mfence();
+	}
 
-#else /* !M_PCM_EMULATE_LATENCY */ 
-	asm_clflush(addr); 	
-	asm_mfence(); 
-#endif /* !M_PCM_EMULATE_LATENCY */ 
+#else /* !M_PCM_EMULATE_LATENCY */
+	asm_clflush(addr);
+	asm_mfence();
+#endif /* !M_PCM_EMULATE_LATENCY */
 
 }
 
@@ -574,7 +574,7 @@ PCM_NT_STORE(pcm_storeset_t *set, volatile pcm_word_t *addr, pcm_word_t val)
 {
 #ifdef M_PCM_EMULATE_CRASH
 	pcm_nt_store_emulate_crash(set, addr, val);
-#endif	
+#endif
 
 	asm_movnti(addr, val);
 
@@ -584,7 +584,7 @@ PCM_NT_STORE(pcm_storeset_t *set, volatile pcm_word_t *addr, pcm_word_t val)
 	uint16_t  index_i;
 	uintptr_t byte_addr;
 	uintptr_t block_byte_addr;
-	
+
 	byte_addr = (uintptr_t) addr;
 	block_byte_addr = (uintptr_t) BLOCK_ADDR(byte_addr);
 	index_addr = (uint16_t) ((block_byte_addr >> CACHELINE_SIZE_LOG)  & ((uint16_t) (-1)));
@@ -600,7 +600,7 @@ retry:
 				set->wcbuf_hashtbl[index_i] = index_addr;
 				set->wcbuf_hashtbl_count++;
 				break;
-			}	
+			}
 		}
 	} else {
 		memset(set->wcbuf_hashtbl, 0, WCBUF_HASHTBL_SIZE);
@@ -619,13 +619,17 @@ PCM_NT_FLUSH(pcm_storeset_t *set)
 {
 #ifdef M_PCM_EMULATE_CRASH
 	pcm_nt_flush_emulate_crash(set);
-#endif	
+#endif
 
 	asm_sfence();
 #ifdef M_PCM_EMULATE_LATENCY
+# ifdef M_PCM_LATENCY_FENCE
+	emulate_latency_ns(M_PCM_LATENCY_FENCE);
+# else
 	emulate_latency_ns(M_PCM_LATENCY_WRITE * set->wcbuf_hashtbl_count);
 	memset(set->wcbuf_hashtbl, 0, WCBUF_HASHTBL_SIZE);
 	set->wcbuf_hashtbl_count = 0;
+# endif /* M_PCM_LATENCY_FENCE */
 #endif
 }
 
@@ -633,20 +637,20 @@ PCM_NT_FLUSH(pcm_storeset_t *set)
 /*
  * NON-TEMPORAL SEQUENTIAL STREAM MODE
  *
- * Used when we know that stream accesses are sequential so that we 
+ * Used when we know that stream accesses are sequential so that we
  * emulate bandwidth and hide some latency. For example, stores to the log
- * are sequential. 
+ * are sequential.
  *
  */
 
- 
+
 static inline
 void
 PCM_SEQSTREAM_INIT(pcm_storeset_t *set)
 {
 #ifdef M_PCM_EMULATE_CRASH
 
-#endif	
+#endif
 
 #ifdef M_PCM_EMULATE_LATENCY
 	set->seqstream_len = 0;
@@ -661,17 +665,17 @@ PCM_SEQSTREAM_STORE(pcm_storeset_t *set, volatile pcm_word_t *addr, pcm_word_t v
 {
 	//printf("PCM_SEQSTREAM_STORE: set=%p, addr=%p, val=%llX\n", set, addr, val);
 #ifdef M_PCM_EMULATE_CRASH
-#endif	
+#endif
 
 	asm_movnti(addr, val);
 
-#ifdef M_PCM_EMULATE_LATENCY
+#if defined(M_PCM_EMULATE_LATENCY) && M_PCM_BANDWIDTH_MB != 0
 	set->seqstream_len = set->seqstream_len + 8;
 
-	/* NOTE: Well, we want to always set the TS of the first write of a 
+	/* NOTE: Well, we want to always set the TS of the first write of a
 	 * sequence. We could use an if-statement but this adds a branch.
 	 * I am not entirely convinced that the branch-predictor will work
-	 * well as the condition whether the branch is taken or not really 
+	 * well as the condition whether the branch is taken or not really
 	 * depends on the length of the sequence of stores which varies.
 	 * I prefer to use a trick that relies on two stores that are likely
 	 * to hit the L1-D cache.
@@ -688,17 +692,17 @@ PCM_SEQSTREAM_STORE_64B_FIRST_WORD(pcm_storeset_t *set, volatile pcm_word_t *add
 {
 	//printf("PCM_SEQSTREAM_STORE: set=%p, addr=%p, val=%llX\n", set, addr, val);
 #ifdef M_PCM_EMULATE_CRASH
-#endif	
+#endif
 
 	asm_movnti(addr, val);
 
-#ifdef M_PCM_EMULATE_LATENCY
+#if defined(M_PCM_EMULATE_LATENCY) && M_PCM_BANDWIDTH_MB != 0
 	set->seqstream_len = set->seqstream_len + 64;
 
-	/* NOTE: Well, we want to always set the TS of the first write of a 
+	/* NOTE: Well, we want to always set the TS of the first write of a
 	 * sequence. We could use an if-statement but this adds a branch.
 	 * I am not entirely convinced that the branch-predictor will work
-	 * well as the condition whether the branch is taken or not really 
+	 * well as the condition whether the branch is taken or not really
 	 * depends on the length of the sequence of stores which varies.
 	 * I prefer to use a trick that relies on two stores that are likely
 	 * to hit the L1-D cache.
@@ -715,7 +719,7 @@ PCM_SEQSTREAM_STORE_64B_NEXT_WORD(pcm_storeset_t *set, volatile pcm_word_t *addr
 {
 	//printf("PCM_SEQSTREAM_STORE: set=%p, addr=%p, val=%llX\n", set, addr, val);
 #ifdef M_PCM_EMULATE_CRASH
-#endif	
+#endif
 
 	asm_movnti(addr, val);
 }
@@ -727,16 +731,16 @@ PCM_SEQSTREAM_STORE_64B(pcm_storeset_t *set, volatile pcm_word_t *addr, pcm_word
 {
 	//printf("PCM_SEQSTREAM_STORE: set=%p, addr=%p, val=%llX\n", set, addr, val);
 #ifdef M_PCM_EMULATE_CRASH
-#endif	
+#endif
 
 	asm_sse_write_block64(addr, val);
 
-#ifdef M_PCM_EMULATE_LATENCY
+#if defined(M_PCM_EMULATE_LATENCY) && M_PCM_BANDWIDTH_MB != 0
 	set->seqstream_len = set->seqstream_len + 64;
-	/* HACK: Well, we want to always set the TS of the first write of a 
+	/* HACK: Well, we want to always set the TS of the first write of a
 	 * sequence. We could use an if-statement but this adds a branch.
 	 * I am not entirely convinced that the branch-predictor will work
-	 * well as the condition whether the branch is taken or not really 
+	 * well as the condition whether the branch is taken or not really
 	 * depends on the length of the sequence of stores
 	 * I prefer to use a trick that relies on two stores that are likely
 	 * to hit the L1-D cache.
@@ -754,11 +758,11 @@ PCM_SEQSTREAM_FLUSH(pcm_storeset_t *set)
 {
 #ifdef M_PCM_EMULATE_CRASH
 
-#endif	
+#endif
 
 #if defined(M_PCM_EMULATE_LATENCY) && M_PCM_BANDWIDTH_MB != 0
 	int          pcm_bandwidth_MB = M_PCM_BANDWIDTH_MB;
-	int          ram_system_peak_bandwidth_MB = RAM_SYSTEM_PEAK_BANDWIDTH_MB;
+	int          ram_system_peak_bandwidth_MB = RAM_SYSTEM_PEAK_BANDWIDTH_MB;s
 	int          size;
 	pcm_hrtime_t handicap_latency;
 	pcm_hrtime_t extra_latency;
@@ -770,11 +774,11 @@ PCM_SEQSTREAM_FLUSH(pcm_storeset_t *set)
 		current_TS = asm_rdtsc();
 		elapsed_time_cycles = current_TS - set->seqstream_write_TS_array[0];
 		elapsed_time_ns = CYCLE2NS(elapsed_time_cycles);
-		
+
 		handicap_latency = (int) size * (1-(float) (((float) pcm_bandwidth_MB)/1000)/(((float) ram_system_peak_bandwidth_MB)/1000))/(((float)pcm_bandwidth_MB)/1000);
 		if (handicap_latency > elapsed_time_ns) {
 			extra_latency = handicap_latency - elapsed_time_ns;
-			asm_sfence();  
+			asm_sfence();
 			__ticket_spin_lock(&ticket_lock);
 			emulate_latency_ns(extra_latency);
 			__ticket_spin_unlock(&ticket_lock);
@@ -789,7 +793,10 @@ PCM_SEQSTREAM_FLUSH(pcm_storeset_t *set)
 	}
 	set->seqstream_write_TS_index = 0;
 	set->seqstream_len = 0;
-#else	
+#elif defined(M_PCM_LATENCY_FENCE)
+	asm_sfence();
+	emulate_latency_ns(M_PCM_LATENCY_FENCE);
+#else
 	asm_sfence();
 #endif
 }
