@@ -363,42 +363,41 @@ emulate_latency_ns(int ns)
  * 
  * Note: Mask MUST not be zero.
  */
-// static inline 
-// void
-//  write_aligned_masked(pcm_word_t *addr, pcm_word_t val, pcm_word_t mask)		
-#define write_aligned_masked(addr, val, mask)						\
-(											\
-	{										\
-		uintptr_t a;								\
-		int       i;								\
-		int       trailing_0bytes;						\
-		int       leading_0bytes;						\
-											\
-		union convert_u {							\
-			pcm_word_t w;							\
-			uint8_t    b[sizeof(pcm_word_t)];				\
-		} valu;									\
-											\
-		/* Complete write? */							\
-		if (mask == ((uint64_t) -1)) {						\
-			PM_EQU_DW(*addr, val);						\
-		} else {								\
-			valu.w = val;							\
-			a = (uintptr_t) addr;						\
-			trailing_0bytes = __builtin_ctzll(mask) >> 3;			\
-			leading_0bytes = __builtin_clzll(mask) >> 3;			\
-			for (i = trailing_0bytes; i<8-leading_0bytes;i++) {		\
-				PM_EQU_DW(*((uint8_t *) (a+i)), valu.b[i]);		\
-			}								\
-		}									\
-	}										\
-)		
+static inline
+void
+write_aligned_masked(pcm_word_t *addr, pcm_word_t val, pcm_word_t mask)
+{
+	uintptr_t a;
+	int       i;
+	int       trailing_0bytes;
+	int       leading_0bytes;
+
+	union convert_u {
+		pcm_word_t w;
+		uint8_t    b[sizeof(pcm_word_t)];
+	} valu;
+
+	/* Complete write? */
+	if (mask == ((uint64_t) -1)) {
+		PM_EQU_DW(*addr, val);
+	} else {
+		valu.w = val;
+		a = (uintptr_t) addr;
+		trailing_0bytes = __builtin_ctzll(mask) >> 3;
+		leading_0bytes = __builtin_clzll(mask) >> 3;
+		for (i = trailing_0bytes; i<8-leading_0bytes;i++) {
+			PM_EQU_DW(*((uint8_t *) (a+i)), valu.b[i]);
+		}
+	}
+}
+
+#ifndef M_PCM_EMULATE_LATENCY
 
 #define PCM_WB_STORE_MASKED(set, addr, val, mask)				\
-		write_aligned_masked(addr, val, mask);				
+	write_aligned_masked(addr, val, mask);
 
 #define PCM_WB_STORE_ALIGNED_MASKED(set, addr, val, mask)			\
-		PCM_WB_STORE_MASKED(set, addr, val, mask);
+	PCM_WB_STORE_MASKED(set, addr, val, mask);
 
 #define PCM_WB_FENCE(set)							\
 	asm_mfence(); 
@@ -433,10 +432,8 @@ emulate_latency_ns(int ns)
 /****************************** DO NOT SCROLL ***************************************/
 
 
+#else
 
-
-
-#if 0
 
 /*
  * WRITE BACK CACHE MODE
@@ -759,7 +756,7 @@ PCM_SEQSTREAM_FLUSH(pcm_storeset_t *set)
 
 #endif	
 
-#ifdef M_PCM_EMULATE_LATENCY
+#if defined(M_PCM_EMULATE_LATENCY) && M_PCM_BANDWIDTH_MB != 0
 	int          pcm_bandwidth_MB = M_PCM_BANDWIDTH_MB;
 	int          ram_system_peak_bandwidth_MB = RAM_SYSTEM_PEAK_BANDWIDTH_MB;
 	int          size;
@@ -796,7 +793,9 @@ PCM_SEQSTREAM_FLUSH(pcm_storeset_t *set)
 	asm_sfence();
 #endif
 }
-#endif // #if 0
+
+#endif /* M_PCM_EMULATE_LATENCY */
+
 #ifdef __cplusplus
 }
 #endif
