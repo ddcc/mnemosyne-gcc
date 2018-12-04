@@ -127,7 +127,7 @@ reservation_info_free (TM_ARGDECL  reservation_info_t* reservationInfoPtr)
  */
 TM_ATTR
 long
-reservation_info_compare (reservation_info_t* aPtr, reservation_info_t* bPtr)
+reservation_info_compare (const reservation_info_t* aPtr, const reservation_info_t* bPtr)
 {
     long typeDiff;
 
@@ -150,7 +150,7 @@ checkReservation (TM_ARGDECL  reservation_t* reservationPtr)
     if (numUsed < 0) {
         TM_RESTART();
     }
-    
+
     long numFree = (long)TM_SHARED_READ(reservationPtr->numFree);
     if (numFree < 0) {
         TM_RESTART();

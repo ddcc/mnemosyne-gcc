@@ -81,27 +81,6 @@
 
 
 /* =============================================================================
- * compareReservationInfo
- * =============================================================================
- */
-TM_ATTR
-long
-compareReservationInfo (const void* aPtr, const void* bPtr)
-{
-    return reservation_info_compare((reservation_info_t*)aPtr,
-                                    (reservation_info_t*)bPtr);
-}
-
-long
-compareReservationInfo_seq (const void* aPtr, const void* bPtr)
-{
-    return reservation_info_compare((reservation_info_t*)aPtr,
-                                    (reservation_info_t*)bPtr);
-}
-
-
-
-/* =============================================================================
  * customer_alloc
  * =============================================================================
  */
@@ -116,7 +95,7 @@ customer_alloc (TM_ARGDECL  long id)
 
     customerPtr->id = id;								/* persistent write */
 
-    customerPtr->reservationInfoListPtr = TMLIST_ALLOC(compareReservationInfo);	/* persistent write */
+    customerPtr->reservationInfoListPtr = TMLIST_ALLOC(reservation_info_compare);	/* persistent write */
     assert(customerPtr->reservationInfoListPtr != NULL);
 
     return customerPtr;
@@ -133,7 +112,7 @@ customer_alloc_seq (long id)
 
     customerPtr->id = id;
 
-    customerPtr->reservationInfoListPtr = list_alloc(compareReservationInfo_seq);
+    customerPtr->reservationInfoListPtr = list_alloc(reservation_info_compare);
     assert(customerPtr->reservationInfoListPtr != NULL);
 
     return customerPtr;
@@ -225,10 +204,10 @@ customer_removeReservationInfo (TM_ARGDECL
         TM_RESTART();
     }
 
-    /* 
+    /*
 	The difficulty here is if you cannot remove the reservation from
-	the list and you don't restart the transaction, then you free the 
-	reservation without removing it from the list and that can lead to 
+	the list and you don't restart the transaction, then you free the
+	reservation without removing it from the list and that can lead to
 	a segfault.
     */
     RESERVATION_INFO_FREE(reservationInfoPtr);

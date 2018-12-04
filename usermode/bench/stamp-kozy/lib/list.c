@@ -96,7 +96,7 @@ TMlist_free (TM_ARGDECL  list_t* listPtr);
 
 TM_ATTR
 long
-compareReservationInfo (const void* aPtr, const void* bPtr);
+reservation_info_compare (const void* aPtr, const void* bPtr);
 
 
 /* =============================================================================
@@ -271,12 +271,12 @@ list_alloc (long (*compare)(const void*, const void*))
     listPtr->size = 0;
 
     if (compare == NULL) {
-        listPtr->compare = compareDataPtrAddressesList; // default 
-    } else if (compare == compareReservationInfo) {
-	listPtr->compare = compareReservationInfo;
+        listPtr->compare = compareDataPtrAddressesList; // default
+    } else if (compare == reservation_info_compare) {
+	listPtr->compare = reservation_info_compare;
     } else {
         // listPtr->compare = compare;
-        assert(0); // Unsup for Tx mode 
+        assert(0); // Unsup for Tx mode
     }
 
     return listPtr;
@@ -307,12 +307,12 @@ Plist_alloc (long (*compare)(const void*, const void*))
     listPtr->size = 0;
 
     if (compare == NULL) {
-        listPtr->compare = compareDataPtrAddressesList; // default 
-    } else if (compare == compareReservationInfo) {
-	listPtr->compare = compareReservationInfo;
+        listPtr->compare = compareDataPtrAddressesList; // default
+    } else if (compare == reservation_info_compare) {
+	listPtr->compare = reservation_info_compare;
     } else {
         // listPtr->compare = compare;
-        assert(0); // Unsup for Tx mode 
+        assert(0); // Unsup for Tx mode
     }
 
     return listPtr;
@@ -342,8 +342,8 @@ TMlist_alloc (TM_ATTR  long (*compare)(const void*, const void*))
     if (compare == NULL) {
         listPtr->compare = compareDataPtrAddressesList; /* default, persistent */
 
-    } else if (compare == compareReservationInfo) {
-	listPtr->compare = compareReservationInfo;
+    } else if (compare == reservation_info_compare) {
+	listPtr->compare = reservation_info_compare;
 
     } else {
         // listPtr->compare = compare;			/* persistent */
@@ -563,8 +563,8 @@ TMfindPreviousList (TM_ARGDECL  list_t* listPtr, void* dataPtr)
 		/* This is to ensure that Tx'nal version of the routine is called */
 		if(listPtr->compare == compareDataPtrAddressesList)
 			cmp = compareDataPtrAddressesList(nodePtr->dataPtr, dataPtr);
-		else if (listPtr->compare == compareReservationInfo)
-			cmp = compareReservationInfo(nodePtr->dataPtr, dataPtr);
+		else if (listPtr->compare == reservation_info_compare)
+			cmp = reservation_info_compare(nodePtr->dataPtr, dataPtr);
 		else
 			cmp = listPtr->compare(nodePtr->dataPtr, dataPtr);
 	} else
@@ -620,8 +620,8 @@ TMlist_find (TM_ARGDECL  list_t* listPtr, void* dataPtr)
     {
 	if(listPtr->compare == compareDataPtrAddressesList)
 		cmp = compareDataPtrAddressesList(nodePtr->dataPtr, dataPtr);
-	else if (listPtr->compare == compareReservationInfo)
-		cmp = compareReservationInfo(nodePtr->dataPtr, dataPtr);
+	else if (listPtr->compare == reservation_info_compare)
+		cmp = reservation_info_compare(nodePtr->dataPtr, dataPtr);
 	else
 		cmp = listPtr->compare(nodePtr->dataPtr, dataPtr);
     } else
@@ -730,11 +730,11 @@ TMlist_insert (TM_ARGDECL  list_t* listPtr, void* dataPtr)
 	{
 		if(listPtr->compare == compareDataPtrAddressesList)
 			cmp = compareDataPtrAddressesList(currPtr->dataPtr, dataPtr);
-		else if (listPtr->compare == compareReservationInfo)
-			cmp = compareReservationInfo(currPtr->dataPtr, dataPtr);
+		else if (listPtr->compare == reservation_info_compare)
+			cmp = reservation_info_compare(currPtr->dataPtr, dataPtr);
 		else
 			cmp = listPtr->compare(currPtr->dataPtr, dataPtr);
-	} else 
+	} else
 		assert(0);
 
         if(cmp == 0)
@@ -835,11 +835,11 @@ TMlist_remove (TM_ARGDECL  list_t* listPtr, void* dataPtr)
 	{
 		if(listPtr->compare == compareDataPtrAddressesList)
 			cmp = compareDataPtrAddressesList(nodePtr->dataPtr, dataPtr);
-		else if (listPtr->compare == compareReservationInfo)
-			cmp = compareReservationInfo(nodePtr->dataPtr, dataPtr);
+		else if (listPtr->compare == reservation_info_compare)
+			cmp = reservation_info_compare(nodePtr->dataPtr, dataPtr);
 		else
         		cmp = listPtr->compare(nodePtr->dataPtr, dataPtr);
-		
+
         	TM_SHARED_WRITE_P(prevPtr->nextPtr, TM_SHARED_READ_P(nodePtr->nextPtr));
 	        TM_SHARED_WRITE_P(nodePtr->nextPtr, (struct list_node*)NULL);
         	TMfreeNode(TM_ARG  nodePtr);

@@ -125,7 +125,7 @@ reservation_info_free (TM_ARGDECL  reservation_info_t* reservationInfoPtr);
  */
 TM_ATTR
 long
-reservation_info_compare (reservation_info_t* aPtr, reservation_info_t* bPtr);
+reservation_info_compare (const reservation_info_t* aPtr, const reservation_info_t* bPtr);
 
 
 /* =============================================================================
