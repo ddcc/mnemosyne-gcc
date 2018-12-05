@@ -1,10 +1,7 @@
 #ifndef _MNEMOSYNE_HEAP_HEAP_HH
 #define _MNEMOSYNE_HEAP_HEAP_HH
 
-#include <alps/layers/pointer.hh>
-#include <alps/layers/slabheap.hh>
-#include <alps/layers/extentheap.hh>
-#include <alps/layers/hybridheap.hh>
+#include <libpmemobj.h>
 
 #include <mnemosyne.h>
 #include <mtm.h>
@@ -19,7 +16,7 @@ public:
     Context(bool _do_v = true, bool _do_nv = true)
         : do_v(_do_v),
           do_nv(_do_nv)
-    { 
+    {
         if (_ITM_inTransaction()) {
             td = _ITM_getTransaction();
         } else {
@@ -51,38 +48,16 @@ public:
     _ITM_transaction * td;
 };
 
-typedef alps::SlabHeap<Context, alps::TPtr, alps::PPtr> SlabHeap_t;
-typedef alps::ExtentHeap<Context, alps::TPtr, alps::PPtr> ExtentHeap_t;
-typedef alps::HybridHeap<Context, alps::TPtr, alps::PPtr, SlabHeap_t, ExtentHeap_t> HybridHeap_t;
-
-class ThreadHeap
-{
+class Heap {
 public:
-    ThreadHeap(HybridHeap_t* hheap)
-        : hheap_(hheap)
-    { }
-
+    Heap();
     void* pmalloc(size_t sz);
-    void pmalloc_undo(void* ptr);
-    void pfree_prepare(void* ptr);
-    void pfree_commit(void* ptr);
+    void* pcalloc(size_t nelem, size_t sz);
+    void pfree(void* ptr);
     size_t getsize(void* ptr);
 
 private:
-    HybridHeap_t* hheap_;
-};
-
-class Heap {
-public:
-
-    int init();
-    ThreadHeap* threadheap();
-
-private:
-    ExtentHeap_t* exheap_;
-    SlabHeap_t* slheap_;
-    size_t bigsize_;
-    size_t slabsize_;
+    PMEMobjpool *objpool;
 };
 
 #endif // _MNEMOSYNE_HEAP_HEAP_HH

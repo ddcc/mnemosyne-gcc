@@ -8,11 +8,10 @@
 #include <mtm_i.h>
 #include <itm.h>
 
-thread_local ThreadHeap* threadheap = NULL;
 static Heap* heap;
 std::mutex heapmtx;
 
-inline static Heap * getHeap (void) 
+inline static Heap * getHeap (void)
 {
     heapmtx.lock();
     if (heap) {
@@ -20,19 +19,13 @@ inline static Heap * getHeap (void)
         return heap;
     }
     heap = new Heap();
-    heap->init();
     heapmtx.unlock();
     return heap;
 }
 
-inline static ThreadHeap* getThreadHeap (void)
-{
-    if (threadheap) {
-        return threadheap;
-    }
-    Heap* heap = getHeap();
-    threadheap = heap->threadheap();
-    return threadheap;
+extern "C"
+void mtm_init_heap() {
+    getHeap();
 }
 
 extern "C"
@@ -40,17 +33,17 @@ void * mtm_pmalloc (size_t sz)
 {
     void* addr;
 
-    ThreadHeap* heap = getThreadHeap();
+    Heap* heap = getHeap();
     addr = heap->pmalloc(sz);
-    
+
 	return addr;
 }
 
 extern "C"
 void mtm_pmalloc_undo (void* ptr)
 {
-    ThreadHeap* heap = getThreadHeap();
-    heap->pmalloc_undo(ptr);
+    Heap* heap = getHeap();
+    heap->pfree(ptr);
 }
 
 
@@ -58,9 +51,11 @@ extern "C"
 void * mtm_pcalloc (size_t nelem, size_t elsize)
 {
     void* addr;
-    // TODO
 
-	return addr;
+    Heap* heap = getHeap();
+    addr = heap->pcalloc(nelem, elsize);
+
+    return addr;
 }
 
 
@@ -68,29 +63,29 @@ extern "C"
 void mtm_pfree (void* ptr)
 {
     // TODO
-    // Do we need this? 
-    // pfree like pmalloc shall only be called inside a transaction to ensure 
+    // Do we need this?
+    // pfree like pmalloc shall only be called inside a transaction to ensure
     // failure atomicity
 }
 
 extern "C"
 void mtm_pfree_prepare (void* ptr)
 {
-    ThreadHeap* heap = getThreadHeap();
-    heap->pfree_prepare(ptr);
+    Heap* heap = getHeap();
+    heap->pfree(ptr);
 }
 
 extern "C"
 void mtm_pfree_commit (void* ptr)
 {
-    ThreadHeap* heap = getThreadHeap();
-    heap->pfree_commit(ptr);
+    Heap* heap = getHeap();
+    heap->pfree(ptr);
 }
 
 extern "C"
 size_t mtm_get_obj_size(void *ptr)
 {
-    ThreadHeap* heap = getThreadHeap();
+    Heap* heap = getHeap();
     return heap->getsize(ptr);
 }
 

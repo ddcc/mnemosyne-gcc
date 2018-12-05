@@ -41,14 +41,6 @@ buildEnv.Append(CPPPATH = ['#library/mcore/include/hal'])
 buildEnv.Append(CPPPATH = ['#library/mcore/include/log'])
 buildEnv.Append(CPPPATH = ['#library/pmalloc/include'])
 
-# Just include everything
-buildEnv.Append(CPPPATH = ['#library/pmalloc/include/alps/'])
-buildEnv.Append(CPPPATH = ['#library/pmalloc/include/alps/include/'])
-buildEnv.Append(CPPPATH = ['#library/pmalloc/include/alps/include/alps'])
-buildEnv.Append(CPPPATH = ['#library/pmalloc/include/alps/include/alps/common'])
-buildEnv.Append(CPPPATH = ['#library/pmalloc/include/alps/include/alps/layers'])
-buildEnv.Append(CPPPATH = ['#library/pmalloc/include/alps/include/alps/pegasus'])
-
 buildEnv.Append(LINKFLAGS = ' -T '+ buildEnv['MY_LINKER_DIR'] + '/linker_script_persistent_segment_m64')
 
 if mainEnv['ENABLE_FTRACE'] == True:

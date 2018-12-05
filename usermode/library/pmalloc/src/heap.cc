@@ -3,107 +3,55 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
 
 #include <mnemosyne.h>
 
 
-//MNEMOSYNE_PERSISTENT void *psegment = 0;
-//_enum {PERSISTENTHEAP_BASE = 0xb00000000};
+static int constructor(PMEMobjpool *pop, void *ptr, void *arg) {
+    return 0;
+}
 
-
-//MNEMOSYNE_PERSISTENT void* PREGION_BASE = 0;
-__attribute__ ((section("PERSISTENT"))) void* PREGION_BASE = 0;
-
-int Heap::init()
+Heap::Heap()
 {
-    alps::DebugOptions dbgopt;
-    dbgopt.log_level = "error"; // Disable logging output
-    alps::init_log(dbgopt);
+    #define PERSISTENT_NAME     "/pmem-fs/pmdk"
+    #define PERSISTENT_LAYOUT   POBJ_LAYOUT_NAME(pmdk)
+    #define PERSISTENT_SIZE     8UL * 1024 * 1024 * 1024
 
-    Context ctx;
-    /* Clean up multiple definitions of PSEGMENT_* */
-    /*
-     * Do not combine n_gb and region_size in the defn
-     * of region_size. it causes compiler to generate wrong
-     * (my guess), which can actually be observed as an overflow 
-     * during runtime.
-     * splitting the values as n_gb and region_size does not
-     * cause any absurd overflows during runtime.
-     */
-    unsigned long long n_gb = 8;
-    unsigned long long region_size = 1024*1024*1024;
-    region_size *= n_gb; 
-    size_t block_log2size = 13;
-
-    slabsize_ = 1 << block_log2size;
-    //slabsize /= 2; 
-
-    /* Max block allocated from slabheap must be smaller than the slab extent size 
-     * to ensure slab data and metadata fit within the slab extent */
-    bigsize_ = slabsize_/2;
-
-    if (PREGION_BASE == 0) {
-        PREGION_BASE = (void*) m_pmap((void *) PREGION_BASE, region_size, PROT_READ|PROT_WRITE, 0);
-        void* region = PREGION_BASE;
-        exheap_ = ExtentHeap_t::make(region, region_size, block_log2size);
-    } else {
-        void* region = PREGION_BASE;
-        exheap_ = ExtentHeap_t::load(region);
+    if (!(objpool = pmemobj_open(PERSISTENT_NAME, PERSISTENT_LAYOUT))) {
+        if (!(objpool = pmemobj_create(PERSISTENT_NAME, PERSISTENT_LAYOUT, PERSISTENT_SIZE, S_IWUSR | S_IRUSR)))
+            abort();
     }
-
-    slheap_ = new SlabHeap_t(slabsize_, NULL, exheap_);
-    slheap_->init(ctx);
 }
 
-ThreadHeap* Heap::threadheap()
+void* Heap::pmalloc(size_t sz)
 {
-    Context ctx;
-
-    SlabHeap_t* slheap = new SlabHeap_t(slabsize_, NULL, exheap_);
-    slheap_->init(ctx);
-
-    HybridHeap_t* hheap = new HybridHeap_t(bigsize_, slheap, exheap_);
-    ThreadHeap* thp = new ThreadHeap(hheap);
-    return thp;
+    PMEMoid oid;
+    int ret = pmemobj_alloc(objpool, &oid, sz, sz, constructor, NULL);
+    if (!ret)
+        return pmemobj_direct(oid);
+    return NULL;
 }
 
-void* ThreadHeap::pmalloc(size_t sz)
+void* Heap::pcalloc(size_t nelem, size_t sz)
 {
-    Context ctx(true, true);
-    
-    alps::TPtr<void> ptr;
-    alps::ErrorCode rc = hheap_->malloc(ctx, sz, &ptr);
-    if (rc != alps::kErrorCodeOk) {
-        return NULL;
-    }
-    return ptr.get();
+    PMEMoid oid;
+    int ret = pmemobj_xalloc(objpool, &oid, nelem * sz, sz, POBJ_XALLOC_ZERO, constructor, NULL);
+    if (!ret)
+        return pmemobj_direct(oid);
+    return NULL;
 }
 
-void ThreadHeap::pmalloc_undo(void* ptr) 
+void Heap::pfree(void* ptr)
 {
-    Context ctx(true, false);
-    
-    hheap_->free(ctx, ptr);
+    PMEMoid oid = pmemobj_oid(ptr);
+    if (!OID_IS_NULL(oid))
+        pmemobj_free(&oid);
 }
 
-void ThreadHeap::pfree_prepare(void* ptr) 
+size_t Heap::getsize(void* ptr)
 {
-    Context ctx(false, true);
-    
-    hheap_->free(ctx, ptr);
-}
-
-void ThreadHeap::pfree_commit(void* ptr) 
-{
-    Context ctx(true, false);
-    
-    hheap_->free(ctx, ptr);
-}
-
-
-size_t ThreadHeap::getsize(void* ptr)
-{
-    Context ctx(true, true);
-
-    return hheap_->getsize(ptr);
+    PMEMoid oid = pmemobj_oid(ptr);
+    if (!OID_IS_NULL(oid))
+        return pmemobj_alloc_usable_size(oid);
 }

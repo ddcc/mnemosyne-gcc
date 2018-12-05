@@ -117,6 +117,8 @@ init_global()
 
 	mtm_config_init();
 
+	mtm_init_heap();
+
 #ifdef EPOCH_GC
 	gc_init(mtm_get_clock);
 #endif /* EPOCH_GC */

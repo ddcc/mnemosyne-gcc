@@ -39,6 +39,8 @@
 extern "C" {
 #endif
 
+void mtm_init_heap();
+
 __attribute__((transaction_pure)) void *_ITM_pmalloc(size_t);
 #define pmalloc _ITM_pmalloc
 __attribute__((transaction_pure)) void _ITM_pfree(void *);
