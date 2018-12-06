@@ -53,7 +53,7 @@
 
 __attribute__ ((section("PERSISTENT"))) pcm_word_t log_pool = 0x0;
 
-#define LOG_NUM 32
+#define LOG_NUM 128
 
 
 typedef struct m_logtype_entry_s m_logtype_entry_t;
